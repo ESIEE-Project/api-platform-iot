@@ -26,7 +26,7 @@ serialport.on("open", function () {
 
   var frame_obj;
 
-  //sleepmode OFF -> not working
+  // sleepmode OFF -> not working
   frame_obj = {
     type: C.FRAME_TYPE.REMOTE_AT_COMMAND_REQUEST,
     destination64: "FFFFFFFFFFFFFFFF",
@@ -35,6 +35,7 @@ serialport.on("open", function () {
   };
   xbeeAPI.builder.write(frame_obj);
   
+  // activer le bouton de tous les routeurs
   frame_obj = {
     type: C.FRAME_TYPE.REMOTE_AT_COMMAND_REQUEST,
     destination16: "FFFFFFFFFFFFFFFF",
@@ -43,6 +44,7 @@ serialport.on("open", function () {
   };
   xbeeAPI.builder.write(frame_obj);
 
+  // activer le bouton pour lancer la partie
   frame_obj = {
     type: C.FRAME_TYPE.REMOTE_AT_COMMAND_REQUEST,
     destination16: "FFFFFFFFFFFFFFFF",
@@ -55,7 +57,7 @@ serialport.on("open", function () {
     type: C.FRAME_TYPE.REMOTE_AT_COMMAND_REQUEST,
     destination16: "FFFFFFFFFFFFFFFF",
     command: "IC",
-    commandParameter: [C],
+    commandParameter: [C], // C = DIO2 + DIO3
   };
   xbeeAPI.builder.write(frame_obj);
 
@@ -117,6 +119,7 @@ lightOn = function (address) {
 
 }
 
+// fonction pour active le sleepmode --> not working
 sleepmodeP1 = function () {
 
   frame_obj = {
@@ -128,6 +131,7 @@ sleepmodeP1 = function () {
   xbeeAPI.builder.write(frame_obj);
 }
 
+// fonction pour capter le signal et avoir infos de proximité --> not working
 dbCall = function () {
   frame_obj = {
     type: C.FRAME_TYPE.REMOTE_AT_COMMAND_REQUEST,
@@ -140,14 +144,11 @@ dbCall = function () {
 
 // All frames parsed by the XBee will be emitted here
 
-// storage.listSensors().then((sensors) => sensors.forEach((sensor) => console.log(sensor.data())))
-
 xbeeAPI.parser.on("data", function (frame) {
 
   //on new device is joined, register it
 
   //on packet received, dispatch event
-  //let dataReceived = String.fromCharCode.apply(null, frame.data);
   if (C.FRAME_TYPE.ZIGBEE_RECEIVE_PACKET === frame.type) {
     console.log("C.FRAME_TYPE.ZIGBEE_RECEIVE_PACKET");
     let dataReceived = String.fromCharCode.apply(null, frame.data);
@@ -156,7 +157,6 @@ xbeeAPI.parser.on("data", function (frame) {
   }
 
   if (C.FRAME_TYPE.NODE_IDENTIFICATION === frame.type) {
-    // let dataReceived = String.fromCharCode.apply(null, frame.nodeIdentifier);
     console.log("NODE_IDENTIFICATION");
     console.log(frame.nodeIdentifier);
     storage.registerPlayer(frame.remote64, frame.nodeIdentifier);
@@ -167,19 +167,18 @@ xbeeAPI.parser.on("data", function (frame) {
     console.log(frame);
 
     if (frame.digitalSamples.DIO2 === 1) {
-      //déclarer le sleepmode
+      //déclarer le sleepmode -> not working
       //sleepmodeP1();
-      console.log(frame, "lumière éteinte")
+      console.log("lumière éteinte")
       lightOff(frame.remote16);
       storage.updateButton(frame.remote64, Date.now());
       storage.updateStatePlayer(frame.remote64, false);
 
-      storage.endGame(frame.remote64, Date.now(), true, (name)=>{
-        console.log("end");
+      storage.endGame("0013A20041C34AC1", Date.now(), true, (name)=>{
+        console.log("partie terminée");
         lightCoordinatorOff();
       });
     } else {
-      //storage.retrieveLastPressed(frame.remote64).then((player)=>console.log(player.data().lastPressed));
       let lastPressedOld;
       storage.retrieveLastPressed(frame.remote64).then((player) => {
         lastPressedOld = player.data().lastPressed;
@@ -187,7 +186,7 @@ xbeeAPI.parser.on("data", function (frame) {
         diff = Date.now() - lastPressedOld;
         if (diff < 5000 && diff > 2000) {
           console.log("entre 2 et 5 sec")
-          console.log("name : " + frame)
+          console.log("routeur allumé : " + frame.nodeIdentifier)
           lightOn(frame.nodeIdentifier);
           storage.updateStatePlayer(frame.remote64, true);
         } else if (diff < 2000){
@@ -205,11 +204,12 @@ xbeeAPI.parser.on("data", function (frame) {
       storage.updateButton(frame.remote64, Date.now());
 
       //lance la partie
-      storage.registerHunter(frame.remote64, Date.now(), true)
+      storage.registerHunter("0013A20041C34AC1", Date.now(), true)
     }
 
   } else if (C.FRAME_TYPE.ZIGBEE_EXPLICIT_RX === frame.type) {
     console.log(frame)
+    // activer bouton pour lancer partie sur le coordinateur --> not working
     /*if (frame.digitalSamples.DIO3 === 1) {
       //lance la partie
       console.log("partie lancée")
