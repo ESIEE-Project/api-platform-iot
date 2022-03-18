@@ -23,12 +23,6 @@ serialport.pipe(xbeeAPI.parser);
 xbeeAPI.builder.pipe(serialport);
 
 serialport.on("open", function () {
-  /*frame_obj = { // AT Request to be sent
-    type: C.FRAME_TYPE.AT_COMMAND,
-    command: "SL",
-    commandParameter: [],
-  };
-  xbeeAPI.builder.write(frame_obj);*/
 
   var frame_obj;
 
@@ -75,27 +69,11 @@ serialport.on("open", function () {
   xbeeAPI.builder.write(frame_obj);
 
   // éteint la lumière du coordinateur
-  frame_obj = {
-    type: C.FRAME_TYPE.AT_COMMAND,
-    command: "D1",
-    commandParameter: [04],
-  };
-  xbeeAPI.builder.write(frame_obj);
-
-  //lightOnP1();
-  //lightOffP1();
-
-  /*frame_obj = { // AT Request to be sent
-    type: C.FRAME_TYPE.REMOTE_AT_COMMAND_REQUEST,
-    destination64: "FFFFFFFFFFFFFFFF",
-    command: "SH",
-    commandParameter: [],
-  };
-  xbeeAPI.builder.write(frame_obj);*/
+  lightCoordinatorOff();
 
 });
 
-lightCoordinatorOn = function (address) {
+lightCoordinatorOn = function () {
 
   frame_obj = {
     type: C.FRAME_TYPE.AT_COMMAND,
@@ -104,6 +82,15 @@ lightCoordinatorOn = function (address) {
   };
   xbeeAPI.builder.write(frame_obj);
 
+}
+
+lightCoordinatorOff =  function () {
+  frame_obj = {
+    type: C.FRAME_TYPE.AT_COMMAND,
+    command: "D1",
+    commandParameter: [04],
+  };
+  xbeeAPI.builder.write(frame_obj);
 }
 
 lightOff = function (address) {
@@ -178,7 +165,6 @@ xbeeAPI.parser.on("data", function (frame) {
 
     console.log("ZIGBEE_IO_DATA_SAMPLE_RX");
     console.log(frame);
-    storage.registerSample(frame.remote64, 'toto');
 
     if (frame.digitalSamples.DIO2 === 1) {
       //déclarer le sleepmode
@@ -187,6 +173,11 @@ xbeeAPI.parser.on("data", function (frame) {
       lightOff(frame.remote16);
       storage.updateButton(frame.remote64, Date.now());
       storage.updateStatePlayer(frame.remote64, false);
+
+      storage.endGame(frame.remote64, Date.now(), true, (name)=>{
+        console.log("end");
+        lightCoordinatorOff();
+      });
     } else {
       //storage.retrieveLastPressed(frame.remote64).then((player)=>console.log(player.data().lastPressed));
       let lastPressedOld;
@@ -212,16 +203,19 @@ xbeeAPI.parser.on("data", function (frame) {
       console.log("lumière coordinateur allumée/partie lancée")
       lightCoordinatorOn();
       storage.updateButton(frame.remote64, Date.now());
+
+      //lance la partie
+      storage.registerHunter(frame.remote64, Date.now(), true)
     }
 
   } else if (C.FRAME_TYPE.ZIGBEE_EXPLICIT_RX === frame.type) {
     console.log(frame)
-    if (frame.digitalSamples.DIO3 === 1) {
+    /*if (frame.digitalSamples.DIO3 === 1) {
       //lance la partie
       console.log("partie lancée")
-      storage.startGame(frame.remote64, Date.now());
+      storage.registerHunter(frame.remote64, Date.now());
       lightCoordinatorOn();
-    }
+    }*/
   } else if (C.FRAME_TYPE.REMOTE_COMMAND_RESPONSE === frame.type) {
     console.log("REMOTE_COMMAND_RESPONSE")
     /*let buf = frame.commandData;

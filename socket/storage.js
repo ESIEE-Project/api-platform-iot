@@ -1,6 +1,9 @@
 const admin = require('firebase-admin');
 const serviceAccount = require('./cache-cache-connecte-0d1a05d60761.json');
 
+var server = require("./server")
+
+
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
@@ -25,20 +28,6 @@ module.exports.registerPlayer = async function (address, name) {
       docRef.update(sensor);
   })
 }
-
-/*module.exports.registerTypePlayer = async function (address, sample) {
-
-  const docRef = db.collection('sensors').doc(address)
-    .collection('samples').doc(Date.now().toString());
-
-  const data = {
-    value: sample,
-    date: Date.now(),
-  }
-  await docRef.set(data);
-
-
-}*/
 
 module.exports.updateButton = async function (address, date) {
 
@@ -72,12 +61,44 @@ module.exports.updateStatePlayer = async function (address, alive) {
   })
 }
 
-module.exports.startGame = async function (address, date) {
+module.exports.endGame = async function (address, date, playerEliminated, callback) {
+
+  var numPlayerEliminated = 0;
+  var isHuntingValue = true;
+
+  if (playerEliminated == true) {
+    numPlayerEliminated++;
+    console.log("numEliminated = " + numPlayerEliminated)
+  }
+
+  if (numPlayerEliminated == 1) {
+    isHuntingValue = false;
+    console.log("isHuntingValue = " + isHuntingValue)
+    callback("john")
+  }
+
+  const docRef = db.collection('hunter').doc(address);
+
+  const sensor = {
+    isHunting: isHuntingValue,
+    dateEndGame: date,
+  }
+
+  await docRef.get().then((snapshotDoc)=> {
+    if (!snapshotDoc.exists)
+      docRef.set(sensor);
+    else
+      docRef.update(sensor);
+  })
+}
+
+module.exports.registerHunter = async function (address, date, hunting) {
 
   const docRef = db.collection('hunter').doc(address);
 
   const sensor = {
     dateStartGame: date,
+    isHunting: hunting,
   }
 
   await docRef.get().then((snapshotDoc)=> {
@@ -102,27 +123,5 @@ module.exports.retrieveLastPressed = function (address) {
   const docRef = db.collection('players').doc(address);
 
   return docRef.get();
-}
-
-module.exports.registerSample = async function (address, sample) {
-
-  const docRef = db.collection('sensors').doc(address)
-    .collection('samples').doc(Date.now().toString());
-
-  const data = {
-    value: sample,
-    date: Date.now(),
-  }
-  await docRef.set(data);
-
-
-}
-
-module.exports.listSensors = function () {
-
-  const docRef = db.collection('sensors');
-
-  return docRef.get()
-
 }
 
